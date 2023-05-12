@@ -7,10 +7,11 @@ import java.io.File;
 import java.io.IOError;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.Arrays;
 
 public class Extractor {
 
-    public void jsonAttributeExtractor(String attribute, String filePath) {
+    public void extractJsonFieldFromFile(String attribute, String filePath) {
         Gson gson = new Gson();
         File file = new File(filePath);
         String json = null;
@@ -23,8 +24,16 @@ public class Extractor {
         System.out.println(jsonObject.get(attribute));
     }
 
+    public File[] collectFileNames(String parentDirectory) {
+        File directory = new File(parentDirectory);
+        return directory.listFiles();
+    }
+
     public static void main(String[] args) {
         Extractor e = new Extractor();
-        e.jsonAttributeExtractor("structured", "src/main/resources/1.json");
+        e.extractJsonFieldFromFile("sample", "src/main/resources/1.json");
+
+        File file = new File("src/main/resources/");
+        System.out.println(Arrays.toString(file.listFiles()));
     }
 }
