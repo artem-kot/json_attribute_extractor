@@ -1,6 +1,8 @@
 package org.example;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import java.io.File;
@@ -31,37 +33,73 @@ import java.util.*;
  * 5. Once dialog objects are in place, we should create a few options to write them into
  * json / txt files.
  *
- *
  */
 
 public class Extractor {
 
     private static final String parentDirectory = "src/main/resources/";
     private static final String targetExtension = ".json";
+    private static final String targetService = "banks";
+    public static ArrayList<String> library = new ArrayList<>();
+    public static HashMap<String, ArrayList<String>> dialogs = new HashMap<>();
 
-    private ArrayList<String> getFilesFromDir(String directory) {
-        File dir = new File(directory);
-        List<File> files = Arrays.asList(Objects.requireNonNull(dir.listFiles()));
+    private File[] getFilesFromDir(String directory) {
+        return new File(directory).listFiles();
+    }
 
-        ArrayList<String> result = new ArrayList<>();
+    private void libraryFilesCollector(File[] files) {
         for (File file : files) {
-            result.add(file.getName());
+            if (file.getName().endsWith(targetExtension)) {
+                library.add(file.getPath());
+            } else {
+                libraryFilesCollector(getFilesFromDir(parentDirectory + file.getName()));
+            }
         }
-        return result;
     }
 
-    public ArrayList<String> createFilesLibrary() {
-        ArrayList<String> library = null;
-        ArrayList<String> dirs = getFilesFromDir(parentDirectory);
-
-        /**
-         * method implementation, generates a big library of existing folders and files.
-         * each String value contains file name and parent dirs.
-         */
-
-        return library;
+    public void updateLibrary() {
+        library.clear();
+        libraryFilesCollector(getFilesFromDir(parentDirectory));
     }
 
+    public void printLibrary() {
+        System.out.printf("Library contains %s elements.\n", library.size());
+//        for (String file : library) {
+//            System.out.println(file);
+//        }
+    }
+
+    public void filterLibrary() {
+        for (int i = 0; i < library.size(); i++) {
+            if (!isTargetServiceInTheFile(library.get(i))) {
+                library.remove(i);
+            }
+        }
+    }
+
+    public boolean isTargetServiceInTheFile(String filePath) {
+        Gson gson = new Gson();
+        File file = new File(filePath);
+        String json = null;
+        try {
+            json = Files.readString(file.toPath());
+        } catch (IOException e) {
+            System.out.println(e.getMessage());
+        }
+        JsonArray bodyArray = gson.fromJson(json, JsonArray.class);
+
+        for (JsonElement jo : bodyArray) {
+            JsonObject bodyObject = jo.getAsJsonObject();
+            String service = bodyObject.get("services").toString();
+//            System.out.println("Service: " + service);
+            if (service.toLowerCase().contains(targetService)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+//    TODO: complete this method, which will utilise dialogs hashmap.
     public void extractJsonFieldFromFile(String attribute, String filePath) {
         Gson gson = new Gson();
         File file = new File(filePath);
@@ -77,6 +115,11 @@ public class Extractor {
 
     public static void main(String[] args) {
         Extractor e = new Extractor();
-        System.out.println(e.getFilesFromDir(parentDirectory));
+//        System.out.println(Arrays.toString(e.getFilesFromDir(parentDirectory)));
+//
+        e.updateLibrary();
+        e.printLibrary();
+        e.filterLibrary();
+        e.printLibrary();
     }
 }
