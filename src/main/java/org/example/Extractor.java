@@ -5,8 +5,10 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+import java.io.BufferedWriter;
 import java.io.File;
 
+import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.*;
@@ -40,6 +42,7 @@ public class Extractor {
     private static final String parentDirectory = "src/main/resources/";
     private static final String targetExtension = ".json";
     private static final String targetService = "banks";
+    private static final String targetOutputFile = parentDirectory + "output.txt";
     public static ArrayList<String> library = new ArrayList<>();
     public static HashMap<String, ArrayList<String>> dialogs = new HashMap<>();
 
@@ -70,10 +73,17 @@ public class Extractor {
     }
 
     public void filterLibrary() {
+        System.out.println("Filtering only bank-related dialogs");
         for (int i = 0; i < library.size(); i++) {
             if (!isTargetServiceInTheFile(library.get(i))) {
                 library.remove(i);
             }
+        }
+    }
+
+    public void printDialogs() {
+        for (Map.Entry entry : dialogs.entrySet()) {
+            System.out.println(entry);
         }
     }
 
@@ -91,7 +101,6 @@ public class Extractor {
         for (JsonElement jo : bodyArray) {
             JsonObject bodyObject = jo.getAsJsonObject();
             String service = bodyObject.get("services").toString();
-//            System.out.println("Service: " + service);
             if (service.toLowerCase().contains(targetService)) {
                 return true;
             }
@@ -99,8 +108,16 @@ public class Extractor {
         return false;
     }
 
-//    TODO: complete this method, which will utilise dialogs hashmap.
-    public void extractJsonFieldFromFile(String attribute, String filePath) {
+    private ArrayList<String> getUtterances(JsonArray turns) {
+        ArrayList<String> utterances = new ArrayList<>();
+        for (JsonElement turn : turns) {
+            JsonObject jo = turn.getAsJsonObject();
+            utterances.add(jo.get("utterance").toString());
+        }
+        return utterances;
+    }
+
+    public void extractDialogsFromFile(String filePath) {
         Gson gson = new Gson();
         File file = new File(filePath);
         String json = null;
@@ -109,17 +126,50 @@ public class Extractor {
         } catch (IOException e) {
             System.out.println(e.getMessage());
         }
-        JsonObject jsonObject = gson.fromJson(json, JsonObject.class);
-        System.out.println(jsonObject.get(attribute));
+        JsonArray bodyArray = gson.fromJson(json, JsonArray.class);
+        for (JsonElement jo : bodyArray) {
+            JsonObject bodyObject = jo.getAsJsonObject();
+            String service = bodyObject.get("services").toString();
+            if (service.toLowerCase().contains(targetService)) {
+                JsonArray turns = bodyObject.get("turns").getAsJsonArray();
+                String dialogId = filePath + "_" + bodyObject.get("dialogue_id").getAsString();
+                ArrayList<String> utterances = getUtterances(turns);
+                dialogs.put(dialogId, utterances);
+            }
+        }
+    }
+
+    public void extractAllDialogs() {
+        for (String file : library) {
+            extractDialogsFromFile(file);
+        }
+    }
+
+    public void writeDialogsToFile() {
+        try {
+            BufferedWriter writer = new BufferedWriter(new FileWriter(targetOutputFile, true));
+            writer.write("dialogs output:\n\n");
+            for (Map.Entry entry : dialogs.entrySet()) {
+                writer.append(entry.getKey().toString()).append("\n");
+                ArrayList<String> utterances = dialogs.get(entry.getKey().toString());
+                for (String utterance : utterances) {
+                    writer.append(utterance).append("\n");
+                }
+                writer.append("\n");
+            }
+            writer.close();
+        } catch (IOException e) {
+            System.out.println(e.getMessage());
+        }
     }
 
     public static void main(String[] args) {
         Extractor e = new Extractor();
-//        System.out.println(Arrays.toString(e.getFilesFromDir(parentDirectory)));
-//
         e.updateLibrary();
         e.printLibrary();
         e.filterLibrary();
         e.printLibrary();
+        e.extractAllDialogs();
+        e.writeDialogsToFile();
     }
 }
